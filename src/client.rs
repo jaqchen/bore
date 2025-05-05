@@ -38,6 +38,19 @@ pub struct Client {
     auth: Option<Authenticator>,
 }
 
+fn random_hostid(idlen: usize) -> String {
+    if idlen <= 4 {
+        if idlen == 0 { "".to_string() } else { std::iter::repeat_with(fastrand::alphanumeric).take(idlen).collect() }
+    } else {
+        let mut newid = String::with_capacity(idlen + 1);
+        let idlen = idlen - 4;
+        newid.push_str("TMP_");
+        let rid: String = std::iter::repeat_with(fastrand::alphanumeric).take(idlen).collect();
+        newid.push_str(&rid);
+        newid
+    }
+}
+
 fn read_hostid_fromfile(idlen: usize) -> String {
     // Get the text file containing `BORE_HOSTID
     let idfile: std::ffi::OsString = match std::env::var_os("BORE_IDFILE") {
@@ -48,19 +61,19 @@ fn read_hostid_fromfile(idlen: usize) -> String {
     let hfile = std::fs::OpenOptions::new().read(true)
         .write(false).create(false).open(&idfile);
     if hfile.is_err() {
-        return String::new();
+        return random_hostid(idlen);
     }
 
     let mut hfile = hfile.unwrap();
     let mut idbuf = vec![0u8; idlen];
     let rlen = hfile.read(&mut idbuf[..]).unwrap_or(0);
     if rlen == 0 {
-        return String::new();
+        return random_hostid(idlen);
     }
 
     let idstr = String::from_utf8_lossy(&idbuf[..rlen]);
     let hostid: &str = idstr.trim();
-    if hostid.is_empty() { String::new() } else { hostid.to_string() }
+    if hostid.is_empty() { random_hostid(idlen) } else { hostid.to_string() }
 }
 
 impl Client {
@@ -81,7 +94,7 @@ impl Client {
         }
 
         // Determine host ID for remote bore server
-        let hostid = if id_str.is_empty() { read_hostid_fromfile(24) } else { id_str.to_string() };
+        let hostid = if id_str.is_empty() { read_hostid_fromfile(16) } else { id_str.to_string() };
         info!(hostid, "Using client IDString");
 
         stream.send(ClientMessage::Hello(port, hostid.clone())).await?;
