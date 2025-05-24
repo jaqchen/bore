@@ -308,7 +308,7 @@ impl Server {
 
                 // Create an timer for sending heart-beat messages
                 let mut hbt_it = tokio::time::interval(std::time::Duration::from_secs(bhval));
-                hbt_it.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                hbt_it.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
                 // Get oneshot receiver handle, informing that following loop should terminate
                 let mut cli_rx = self.update_client_port(&hostid, port, true).await.unwrap();
 

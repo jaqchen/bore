@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 
+use tracing::warn;
 use anyhow::Result;
 use bore_cli::{client::Client, server::Server};
 use clap::{error::ErrorKind, CommandFactory, Parser, Subcommand};
@@ -75,8 +76,16 @@ async fn run(command: Command) -> Result<()> {
             port,
             secret,
         } => {
-            let client = Client::new(&local_host, local_port, &id_string, &to, port, secret.as_deref()).await?;
-            client.listen().await?;
+            loop {
+                if let Ok(client) = Client::new(&local_host,
+                    local_port, &id_string, &to, port, secret.as_deref()).await {
+                    let _ = client.listen().await;
+                }
+                // Random delay sometime before restarting bore client
+                let rdelay: u64 = fastrand::u64(12..25);
+                warn!(rdelay, "restarting bore client in a short while...");
+                tokio::time::sleep(std::time::Duration::from_secs(rdelay)).await;
+            }
         }
         Command::Server {
             min_port,
